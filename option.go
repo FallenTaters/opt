@@ -43,13 +43,10 @@ func From[T any](v T) Option[T] {
 // with the value pointed at by v
 func FromPtr[T any](v *T) Option[T] {
 	if v == nil {
-		return Option[T]{}
+		return New[T]()
 	}
 
-	return Option[T]{
-		Valid: true,
-		V:     *v,
-	}
+	return From(*v)
 }
 
 // Ptr returns a pointer to a copy of the value contained by Option.
@@ -118,7 +115,7 @@ func (o Option[T]) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (o *Option[T]) UnmarshalJSON(data []byte) error {
-	*o = Option[T]{}
+	*o = New[T]()
 
 	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
 		return nil
@@ -126,12 +123,7 @@ func (o *Option[T]) UnmarshalJSON(data []byte) error {
 
 	o.Valid = true
 
-	err := json.Unmarshal(data, &o.V)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(data, &o.V)
 }
 
 // Value implements driver.Valuer
@@ -145,19 +137,15 @@ func (o Option[T]) Value() (driver.Value, error) {
 
 // Scan implements sql.Scanner
 func (o *Option[T]) Scan(data any) error {
-	*o = Option[T]{}
+	*o = New[T]()
 
 	if data == nil {
 		return nil
 	}
 
 	o.Valid = true
-	err := scanAssign(&o.V, data)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return scanAssign(&o.V, data)
 }
 
 // scanAssign is a copy of database/sql.assignConvertRows, with the following changes
