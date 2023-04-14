@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -54,6 +53,7 @@ func FromPtr[T any](v *T) Option[T] {
 }
 
 // Ptr returns a pointer to a copy of the value contained by Option.
+// If Option is null, the pointer is nil.
 func (o Option[T]) Ptr() *T {
 	if !o.Valid {
 		return nil
@@ -237,12 +237,6 @@ func scanAssign(dest, src any) error {
 	}
 
 	dpv := reflect.ValueOf(dest)
-	if dpv.Kind() != reflect.Pointer {
-		return errors.New("destination not a pointer")
-	}
-	if dpv.IsNil() {
-		return errors.New("destination pointer is nil")
-	}
 
 	if !sv.IsValid() {
 		sv = reflect.ValueOf(src)

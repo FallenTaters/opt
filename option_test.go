@@ -12,6 +12,44 @@ import (
 	"time"
 )
 
+func TestOption(t *testing.T) {
+	t.Run("pointer methods", func(t *testing.T) {
+		assertEq(t, opt.FromPtr[int](nil), opt.New[int]())
+		assertEq(t, opt.FromPtr(ptr(0)), opt.From(0))
+		assertEq(t, opt.FromPtr(ptr(3)), opt.From(3))
+
+		assertEq(t, opt.New[int]().Ptr(), nil)
+		assertEq(t, *opt.From(0).Ptr(), 0)
+		assertEq(t, *opt.From(1).Ptr(), 1)
+	})
+
+	t.Run("IsNull", func(t *testing.T) {
+		assertEq(t, opt.New[int]().IsNull(), true)
+		assertEq(t, opt.From(0).IsNull(), false)
+		assertEq(t, opt.From(1).IsNull(), false)
+	})
+
+}
+
+func TestGoString(t *testing.T) {
+	assertEq(t, opt.New[int]().GoString(), "opt.New[int]()")
+	assertEq(t, opt.From(1).GoString(), "opt.From(1)")
+	assertEq(t, opt.FromPtr[int](nil).GoString(), "opt.New[int]()")
+	assertEq(t, opt.FromPtr[TestStruct1](nil).GoString(), "opt.New[TestStruct1]()")
+	assertEq(t, opt.From(TestStruct1{"hello"}).GoString(), "opt.From(opt_test.TestStruct1{V:\"hello\"})")
+	assertEq(t, opt.New[sql.NullInt64]().GoString(), "opt.New[sql.NullInt64]()")
+	assertEq(t, opt.From(sql.NullInt64{}).GoString(), "opt.From(sql.NullInt64{Int64:0, Valid:false})")
+	assertEq(t, opt.From(sql.NullInt64{Valid: true, Int64: 1}).GoString(), "opt.From(sql.NullInt64{Int64:1, Valid:true})")
+	assertEq(t, opt.New[sql.Scanner]().GoString(), "opt.New[sql.Scanner]()")
+	assertEq(t, opt.From[sql.Scanner](&sql.NullInt64{}).GoString(), "opt.From[sql.Scanner](&sql.NullInt64{Int64:0, Valid:false})")
+	assertEq(t, opt.From[sql.Scanner](&sql.NullInt64{Valid: true, Int64: 1}).GoString(), "opt.From[sql.Scanner](&sql.NullInt64{Int64:1, Valid:true})")
+	assertEq(t, opt.New[chan int]().GoString(), "opt.New[chan int]()")
+	assertEq(t, opt.New[func()]().GoString(), "opt.New[func()]()")
+
+	// assertEq(t, opt.From[sql.Scanner](nil).GoString(), "opt.From[sql.Scanner](<nil>)")
+	// assertEq(t, opt.From(make(chan int)).GoString(), "opt.From((chan int)(0xc0001a4c60))")
+}
+
 func TestOptionInt64(t *testing.T) {
 	t.Run("sql.Scanner", func(t *testing.T) {
 		cases := []any{
@@ -110,7 +148,7 @@ func TestOptionInt64(t *testing.T) {
 				sqlData, sqlErr := json.Marshal(c.ptr)
 
 				assertErrorEq(t, optErr, sqlErr)
-				assertBytesEqual(t, optData, sqlData)
+				assertBytesEq(t, optData, sqlData)
 			})
 		}
 	})
@@ -245,7 +283,7 @@ func TestOptionFloat64(t *testing.T) {
 				sqlData, sqlErr := json.Marshal(c.ptr)
 
 				assertErrorEq(t, optErr, sqlErr)
-				assertBytesEqual(t, optData, sqlData)
+				assertBytesEq(t, optData, sqlData)
 			})
 		}
 	})
@@ -372,7 +410,7 @@ func TestOptionString(t *testing.T) {
 				sqlData, sqlErr := json.Marshal(c.ptr)
 
 				assertErrorEq(t, optErr, sqlErr)
-				assertBytesEqual(t, optData, sqlData)
+				assertBytesEq(t, optData, sqlData)
 			})
 		}
 	})
@@ -499,7 +537,7 @@ func TestOptionBool(t *testing.T) {
 				sqlData, sqlErr := json.Marshal(c.ptr)
 
 				assertErrorEq(t, optErr, sqlErr)
-				assertBytesEqual(t, optData, sqlData)
+				assertBytesEq(t, optData, sqlData)
 			})
 		}
 	})
@@ -607,7 +645,7 @@ func TestOptionStruct1(t *testing.T) {
 				sqlData, sqlErr := json.Marshal(opt.FromPtr(c))
 
 				assertErrorEq(t, optErr, sqlErr)
-				assertBytesEqual(t, optData, sqlData)
+				assertBytesEq(t, optData, sqlData)
 			})
 		}
 	})
@@ -676,7 +714,7 @@ func TestOptionStruct2(t *testing.T) {
 				sqlData, sqlErr := json.Marshal(opt.FromPtr(c))
 
 				assertEq(t, optErr == nil, sqlErr == nil)
-				assertBytesEqual(t, optData, sqlData)
+				assertBytesEq(t, optData, sqlData)
 			})
 		}
 	})
@@ -713,6 +751,74 @@ func TestOptionStruct2(t *testing.T) {
 	})
 }
 
+func TestOptionScanAssign(t *testing.T) {
+	t.Run("string to []byte", func(t *testing.T) {
+		o := opt.New[[]byte]()
+		if err := o.Scan("hello"); err != nil {
+			t.Error(err)
+		}
+		assertEq(t, string(o.V), "hello")
+	})
+
+	t.Run("[]byte to []byte", func(t *testing.T) {
+		o := opt.New[[]byte]()
+		if err := o.Scan([]byte("hello")); err != nil {
+			t.Error(err)
+		}
+		assertEq(t, string(o.V), "hello")
+	})
+
+	t.Run("[]byte to any", func(t *testing.T) {
+		o := opt.New[any]()
+		if err := o.Scan([]byte("hello")); err != nil {
+			t.Error(err)
+		}
+		assertBytesEq(t, o.V.([]byte), []byte("hello"))
+	})
+
+	t.Run("Time to Time", func(t *testing.T) {
+		o := opt.New[time.Time]()
+		now := time.Now()
+		if err := o.Scan(now); err != nil {
+			t.Error(err)
+		}
+		assertEq(t, o.V, now)
+	})
+
+	t.Run("Time to []byte", func(t *testing.T) {
+		o := opt.New[[]byte]()
+		now := time.Now()
+		if err := o.Scan(now); err != nil {
+			t.Error(err)
+		}
+		assertBytesEq(t, o.V, []byte(now.Format(time.RFC3339Nano)))
+	})
+
+	t.Run("int to any", func(t *testing.T) {
+		o := opt.New[any]()
+		if err := o.Scan(1); err != nil {
+			t.Error(err)
+		}
+		assertEq(t, o.V, 1)
+	})
+
+	t.Run("int to sql.Scanner", func(t *testing.T) {
+		o := opt.New[sql.NullInt64]()
+		if err := o.Scan(1); err != nil {
+			t.Error(err)
+		}
+		assertEq(t, o.V, sql.NullInt64{Valid: true, Int64: 1})
+	})
+
+	t.Run("bytes assignable", func(t *testing.T) {
+		o := opt.New[json.RawMessage]()
+		if err := o.Scan([]byte("hello")); err != nil {
+			t.Error(err)
+		}
+		assertBytesEq(t, o.V, []byte("hello"))
+	})
+}
+
 func ptr[T any](v T) *T { return &v }
 
 func assertEq[T comparable](t *testing.T, actual, expected T) {
@@ -731,29 +837,10 @@ func assertErrorEq(t *testing.T, actual, expected error) {
 	}
 }
 
-func assertBytesEqual(t *testing.T, actual, expected []byte) {
+func assertBytesEq(t *testing.T, actual, expected []byte) {
 	t.Helper()
 
 	if (expected == nil) != (actual == nil) || !bytes.Equal(actual, expected) {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
-}
-
-func TestGoString(t *testing.T) {
-	assertEq(t, opt.New[int]().GoString(), "opt.New[int]()")
-	assertEq(t, opt.From(1).GoString(), "opt.From(1)")
-	assertEq(t, opt.FromPtr[int](nil).GoString(), "opt.New[int]()")
-	assertEq(t, opt.FromPtr[TestStruct1](nil).GoString(), "opt.New[TestStruct1]()")
-	assertEq(t, opt.From(TestStruct1{"hello"}).GoString(), "opt.From(opt_test.TestStruct1{V:\"hello\"})")
-	assertEq(t, opt.New[sql.NullInt64]().GoString(), "opt.New[sql.NullInt64]()")
-	assertEq(t, opt.From(sql.NullInt64{}).GoString(), "opt.From(sql.NullInt64{Int64:0, Valid:false})")
-	assertEq(t, opt.From(sql.NullInt64{Valid: true, Int64: 1}).GoString(), "opt.From(sql.NullInt64{Int64:1, Valid:true})")
-	assertEq(t, opt.New[sql.Scanner]().GoString(), "opt.New[sql.Scanner]()")
-	assertEq(t, opt.From[sql.Scanner](&sql.NullInt64{}).GoString(), "opt.From[sql.Scanner](&sql.NullInt64{Int64:0, Valid:false})")
-	assertEq(t, opt.From[sql.Scanner](&sql.NullInt64{Valid: true, Int64: 1}).GoString(), "opt.From[sql.Scanner](&sql.NullInt64{Int64:1, Valid:true})")
-	assertEq(t, opt.New[chan int]().GoString(), "opt.New[chan int]()")
-	assertEq(t, opt.New[func()]().GoString(), "opt.New[func()]()")
-
-	// assertEq(t, opt.From[sql.Scanner](nil).GoString(), "opt.From[sql.Scanner](<nil>)")
-	// assertEq(t, opt.From(make(chan int)).GoString(), "opt.From((chan int)(0xc0001a4c60))")
 }
