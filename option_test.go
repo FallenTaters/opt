@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"opt"
 	"testing"
 	"time"
+
+	"github.com/FallenTaters/opt"
 )
 
 func TestOption(t *testing.T) {
