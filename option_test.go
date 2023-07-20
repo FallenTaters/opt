@@ -36,7 +36,7 @@ func TestGoString(t *testing.T) {
 	assertEq(t, opt.New[int]().GoString(), "opt.New[int]()")
 	assertEq(t, opt.From(1).GoString(), "opt.From(1)")
 	assertEq(t, opt.FromPtr[int](nil).GoString(), "opt.New[int]()")
-	assertEq(t, opt.FromPtr[TestStruct1](nil).GoString(), "opt.New[TestStruct1]()")
+	assertEq(t, opt.FromPtr[TestStruct1](nil).GoString(), "opt.New[opt_test.TestStruct1]()")
 	assertEq(t, opt.From(TestStruct1{"hello"}).GoString(), "opt.From(opt_test.TestStruct1{V:\"hello\"})")
 	assertEq(t, opt.New[sql.NullInt64]().GoString(), "opt.New[sql.NullInt64]()")
 	assertEq(t, opt.From(sql.NullInt64{}).GoString(), "opt.From(sql.NullInt64{Int64:0, Valid:false})")
